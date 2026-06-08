@@ -1,0 +1,175 @@
+# =============================================================================
+# GCP Marketplace deployer schema — the install form.
+#
+# Only customer-environment + sizing values belong here. Everything the customer
+# never sets (LLM model internals, HPA targets, resource defaults, image refs)
+# stays in values.yaml. Each property maps to a Helm value via `x-google-
+# marketplace` overrides applied by the deployer.
+#
+# schema version: x-google-marketplace v2
+# =============================================================================
+x-google-marketplace:
+  schemaVersion: v2
+  applicationApiVersion: v1beta1
+  publishedVersion: "1.0.0"
+  publishedVersionMetadata:
+    releaseNote: "Initial FinAI Studio Marketplace release."
+    releaseTypes:
+      - Feature
+    recommended: true
+
+  managedUpdates:
+    kalmSupported: false
+
+  images:
+    backend:
+      properties:
+        backend.image.repository:
+          type: REPO_WITH_REGISTRY
+        backend.image.tag:
+          type: TAG
+    frontend:
+      properties:
+        frontend.image.repository:
+          type: REPO_WITH_REGISTRY
+        frontend.image.tag:
+          type: TAG
+    validator:
+      properties:
+        preinstallValidation.image.repository:
+          type: REPO_WITH_REGISTRY
+        preinstallValidation.image.tag:
+          type: TAG
+
+  # Cluster constraints surfaced to the customer before install.
+  clusterConstraints:
+    resources:
+      - replicas: 2
+        requests:
+          cpu: 500m
+          memory: 1Gi
+    k8sVersion: ">=1.27.0"
+    assistedClusterCreation:
+      type: STANDARD
+      gke:
+        autopilot: { enabled: true }
+
+properties:
+  # ── Release plumbing (filled by the deployer) ──────────────────────────────
+  name:
+    type: string
+    title: Application instance name
+    default: finai-studio
+  namespace:
+    type: string
+    title: Control-plane namespace
+    default: agentic-ai-internal
+    x-google-marketplace:
+      type: NAMESPACE
+
+  # ── Customer GCP environment (REQUIRED) ────────────────────────────────────
+  customer.projectId:
+    type: string
+    title: Customer GCP Project ID
+    description: The project hosting this GKE cluster, Cloud SQL, and Artifact Registry.
+  customer.region:
+    type: string
+    title: Primary region
+    default: us-central1
+  customer.artifactRegistry:
+    type: string
+    title: Artifact Registry path
+    description: >-
+      Customer's own registry for custom agent/workflow/datasource images,
+      as host/project/repo (e.g. us-central1-docker.pkg.dev/my-proj/finai).
+  customer.buildContextBucket:
+    type: string
+    title: Build context GCS bucket
+    description: Bucket for transient Kaniko build tarballs (7-day lifecycle recommended).
+
+  # ── Vertex AI ──────────────────────────────────────────────────────────────
+  vertexAi.location:
+    type: string
+    title: Vertex AI region
+    default: us-central1
+    description: Region where Gemini inference runs (may differ from the cluster region).
+
+  # ── Database (Cloud SQL) ───────────────────────────────────────────────────
+  database.cloudSqlProxy.instanceConnectionName:
+    type: string
+    title: Cloud SQL instance connection name
+    description: project:region:instance — used by the Cloud SQL Auth Proxy sidecar.
+  database.name:
+    type: string
+    title: Database name
+    default: finai
+  database.user:
+    type: string
+    title: Database user
+    default: finai_app
+  database.existingSecret:
+    type: string
+    title: DB password Secret (name)
+    description: Name of a pre-created Kubernetes Secret holding key `password`.
+    default: finai-db-credentials
+
+  # ── Workload Identity GSA emails (customer-provisioned) ────────────────────
+  serviceAccounts.studioControllerGsa:
+    type: string
+    title: Studio controller GSA email
+    description: GSA bound to the backend KSA (aiplatform.user + storage.objectAdmin on build bucket).
+  serviceAccounts.kanikoBuilderGsa:
+    type: string
+    title: Image builder GSA email
+    description: GSA bound to the Kaniko builder KSA (artifactregistry.writer + storage.objectViewer).
+  serviceAccounts.agentRuntimeGsa:
+    type: string
+    title: Agent runtime GSA email
+    description: aiplatform.user + secretmanager.secretAccessor + artifactregistry.reader.
+  serviceAccounts.workflowRuntimeGsa:
+    type: string
+    title: Workflow runtime GSA email
+  serviceAccounts.datasourceRuntimeGsa:
+    type: string
+    title: Datasource runtime GSA email
+  preinstallValidation.gsaEmail:
+    type: string
+    title: Pre-install validator GSA email
+    description: Read access to AR / Vertex AI / Cloud SQL / Secret Manager for the validation hook.
+
+  # ── Sizing (optional overrides) ────────────────────────────────────────────
+  backend.replicas:
+    type: integer
+    title: Backend replicas
+    default: 2
+    minimum: 1
+    maximum: 10
+  frontend.replicas:
+    type: integer
+    title: Frontend replicas
+    default: 2
+    minimum: 1
+    maximum: 10
+
+required:
+  - name
+  - namespace
+  - customer.projectId
+  - customer.region
+  - customer.artifactRegistry
+  - customer.buildContextBucket
+  - vertexAi.location
+  - database.cloudSqlProxy.instanceConnectionName
+  - database.existingSecret
+  - serviceAccounts.studioControllerGsa
+  - serviceAccounts.kanikoBuilderGsa
+  - serviceAccounts.agentRuntimeGsa
+
+form:
+  - widget: help
+    description: >-
+      FinAI Studio installs into your existing GKE cluster. Before installing,
+      ensure you have provisioned: a VPC, Cloud SQL (Postgres + pgvector),
+      an Artifact Registry repo, a build-context GCS bucket, the Workload
+      Identity GSAs listed below, and any Secret Manager secrets. The
+      pre-install validation hook will verify these and abort on failure.

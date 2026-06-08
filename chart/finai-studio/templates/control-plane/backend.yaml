@@ -1,0 +1,74 @@
+# PLACEHOLDER — backend Deployment + Service. Flesh out probes/env once the
+# published image surface is finalized. Backend runs in the control namespace,
+# carries the studio-controller KSA, and (optionally) a Cloud SQL Auth Proxy
+# sidecar. envFrom finai-runtime-config; DB_PASSWORD + SQLALCHEMY_DATABASE_URI
+# injected here (secret-backed) because they must not live in the ConfigMap.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finai-backend
+  namespace: {{ .Values.namespaces.control }}
+  labels:
+    {{- include "finai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.backend.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        {{- include "finai.labels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+    spec:
+      serviceAccountName: {{ .Values.serviceAccounts.studioController }}
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.backend.port }}
+          envFrom:
+            - configMapRef:
+                name: finai-runtime-config
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: {{ .Values.database.passwordKey }}
+            - name: SQLALCHEMY_DATABASE_URI
+              value: {{ include "finai.sqlalchemyUri" . | quote }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.backend.securityContext | nindent 12 }}
+          # TODO: readiness/liveness probes on /api/health
+        {{- if .Values.database.cloudSqlProxy.enabled }}
+        - name: cloud-sql-proxy
+          image: {{ .Values.database.cloudSqlProxy.image }}
+          args:
+            - "--structured-logs"
+            - "--port={{ .Values.database.port }}"
+            - {{ .Values.database.cloudSqlProxy.instanceConnectionName | quote }}
+          securityContext:
+            runAsNonRoot: true
+        {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finai-backend
+  namespace: {{ .Values.namespaces.control }}
+  labels:
+    {{- include "finai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  type: {{ .Values.ingress.type }}
+  selector:
+    app.kubernetes.io/component: backend
+  ports:
+    - port: 80
+      targetPort: {{ .Values.backend.port }}
+      name: http

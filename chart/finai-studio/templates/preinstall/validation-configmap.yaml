@@ -1,0 +1,18 @@
+{{- if .Values.preinstallValidation.enabled }}
+# Embeds validate.py so the script can be updated without rebuilding the image.
+# The Job mounts this over the image's /app/validate.py.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "finai.name" . }}-preinstall-validator
+  namespace: {{ .Values.namespaces.control }}
+  labels:
+    {{- include "finai.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-10"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+data:
+  validate.py: |-
+{{ .Files.Get "files/validate.py" | indent 4 }}
+{{- end }}

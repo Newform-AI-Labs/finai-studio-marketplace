@@ -1,0 +1,104 @@
+{{- if .Values.preinstallValidation.enabled }}
+# Pre-install validation Job. Runs INSIDE the cluster before any platform
+# workload is created. A non-zero exit aborts the Helm install.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "finai.name" . }}-preinstall-validation
+  namespace: {{ .Values.namespaces.control }}
+  labels:
+    {{- include "finai.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: {{ add .Values.preinstallValidation.timeoutSeconds 60 }}
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        {{- include "finai.labels" . | nindent 8 }}
+        app.kubernetes.io/component: preinstall-validator
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "finai.name" . }}-validator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: validator
+          image: "{{ .Values.preinstallValidation.image.repository }}:{{ .Values.preinstallValidation.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          command: ["python", "/app/validate.py"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          env:
+            - name: CUSTOMER_PROJECT_ID
+              value: {{ .Values.customer.projectId | quote }}
+            - name: CUSTOMER_REGION
+              value: {{ .Values.customer.region | quote }}
+            - name: CUSTOMER_ARTIFACT_REGISTRY
+              value: {{ .Values.customer.artifactRegistry | quote }}
+            - name: VERTEX_AI_LOCATION
+              value: {{ .Values.vertexAi.location | quote }}
+            - name: VERTEX_AI_PROJECT_NAME
+              value: {{ include "finai.vertexProject" . | quote }}
+            - name: LLM_MODEL
+              value: {{ .Values.vertexAi.model | quote }}
+            - name: DB_HOST
+              value: {{ .Values.database.host | default "127.0.0.1" | quote }}
+            - name: DB_PORT
+              value: {{ .Values.database.port | quote }}
+            - name: DB_NAME
+              value: {{ .Values.database.name | quote }}
+            - name: DB_USER
+              value: {{ .Values.database.user | quote }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.database.existingSecret }}
+                  key: {{ .Values.database.passwordKey }}
+            - name: REQUIRED_SECRETS
+              value: {{ join "," (.Values.preinstallValidation.requiredSecrets | default list) | quote }}
+            - name: VALIDATION_TIMEOUT_SECONDS
+              value: {{ .Values.preinstallValidation.timeoutSeconds | quote }}
+            # Per-check toggles
+            - name: CHECK_ARTIFACT_REGISTRY
+              value: {{ .Values.preinstallValidation.checks.artifactRegistry | quote }}
+            - name: CHECK_VERTEX_AI
+              value: {{ .Values.preinstallValidation.checks.vertexAi | quote }}
+            - name: CHECK_CLOUD_SQL
+              value: {{ .Values.preinstallValidation.checks.cloudSql | quote }}
+            - name: CHECK_IAM
+              value: {{ .Values.preinstallValidation.checks.iam | quote }}
+            - name: CHECK_SECRET_MANAGER
+              value: {{ .Values.preinstallValidation.checks.secretManager | quote }}
+          volumeMounts:
+            - name: script
+              mountPath: /app/validate.py
+              subPath: validate.py
+              readOnly: true
+        {{- if .Values.database.cloudSqlProxy.enabled }}
+        # Proxy sidecar so the Cloud SQL check can reach Postgres on localhost.
+        # NOTE: as a sidecar in a Job, terminate it after the validator exits
+        #       (Cloud SQL Proxy v2 supports /quitquitquit; or rely on the Job's
+        #       activeDeadlineSeconds). TODO: wire --exit-zero-on-sigterm pattern.
+        - name: cloud-sql-proxy
+          image: {{ .Values.database.cloudSqlProxy.image }}
+          args:
+            - "--structured-logs"
+            - "--port={{ .Values.database.port }}"
+            - {{ .Values.database.cloudSqlProxy.instanceConnectionName | quote }}
+          securityContext:
+            runAsNonRoot: true
+        {{- end }}
+      volumes:
+        - name: script
+          configMap:
+            name: {{ include "finai.name" . }}-preinstall-validator
+{{- end }}

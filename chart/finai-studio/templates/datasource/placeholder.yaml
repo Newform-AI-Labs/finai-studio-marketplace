@@ -1,0 +1,9 @@
+# datasource namespace — runtime-populated MCP servers; no static Helm workloads.
+#
+# Datasource MCP servers are built + deployed AT RUNTIME by the backend
+# (app/service/datasource/build_deploy) as Deployment + Service + HPA, built via
+# the shared Kaniko client. This consolidates the legacy agentic-ai-tools +
+# agentic-ai-connectors split into one datasource tier (DATASOURCE_NAMESPACE).
+#
+# Build context staged under gs://{DATASOURCE_MCP_GCS_BUCKET}/{PREFIX}/.
+# Comment-only — renders to an empty manifest.

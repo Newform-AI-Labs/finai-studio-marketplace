@@ -1,0 +1,33 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- /*
+PLACEHOLDER default-deny egress baseline (2026-05 RCE incident remediation).
+Applied per runtime namespace; allowlist rules (Vertex AI, AR, Cloud SQL via
+PSC, Secret Manager, DNS) to be added before production. Egress to the public
+internet is denied except through the connectors/datasource allowlist.
+*/ -}}
+{{- range $ns := list .Values.namespaces.control .Values.namespaces.agents .Values.namespaces.workflow .Values.namespaces.datasource }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: {{ $ns }}
+  labels:
+    {{- include "finai.labels" $ | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    # DNS (kube-dns) — required for any in-cluster resolution.
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # TODO: add allowlist egress to Vertex AI, Artifact Registry, Cloud SQL
+    #       (PSC /28), Secret Manager, Model Armor.
+{{- end }}
+{{- end }}

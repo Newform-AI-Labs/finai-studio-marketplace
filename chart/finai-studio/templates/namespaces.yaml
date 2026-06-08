@@ -1,0 +1,12 @@
+{{- if .Values.namespaces.create }}
+{{- range $key, $ns := dict "control" .Values.namespaces.control "agents" .Values.namespaces.agents "workflow" .Values.namespaces.workflow "datasource" .Values.namespaces.datasource }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ $ns }}
+  labels:
+    {{- include "finai.labels" $ | nindent 4 }}
+    finai.studio/tier: {{ $key }}
+{{- end }}
+{{- end }}

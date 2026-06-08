@@ -1,0 +1,86 @@
+# finai-runtime-config — consumed via envFrom by backend AND by every built
+# agent/workflow/datasource pod (see k8s_deployment.build_deployment which sets
+# env_from: configMapRef name=finai-runtime-config). Keys map 1:1 to
+# app/core/config.py Settings.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finai-runtime-config
+  namespace: {{ .Values.namespaces.control }}
+  labels:
+    {{- include "finai.labels" . | nindent 4 }}
+data:
+  PROJECT_NAME: "FinAI Studio"
+  PORT: {{ .Values.backend.port | quote }}
+  ENVIRONMENT: {{ .Values.logging.environment | quote }}
+  LOG_LEVEL: {{ .Values.logging.level | quote }}
+
+  # ── Database ──────────────────────────────────────────────────────────────
+  BACKEND_DB_POOL_SIZE: {{ .Values.database.poolSize | quote }}
+  BACKEND_DB_MAX_OVERFLOW: {{ .Values.database.maxOverflow | quote }}
+  # SQLALCHEMY_DATABASE_URI is injected as an env var (needs DB_PASSWORD secret) —
+  # see the backend Deployment, not this ConfigMap.
+
+  # ── Customer GCP env ─────────────────────────────────────────────────────
+  CUSTOMER_PROJECT_ID: {{ .Values.customer.projectId | quote }}
+  CUSTOMER_REGION: {{ .Values.customer.region | quote }}
+  CUSTOMER_ARTIFACT_REGISTRY: {{ .Values.customer.artifactRegistry | quote }}
+  BUILD_CONTEXT_BUCKET: {{ .Values.customer.buildContextBucket | quote }}
+  GCP_PROJECT_ID: {{ .Values.customer.projectId | quote }}
+  GOOGLE_CLOUD_PROJECT: {{ .Values.customer.projectId | quote }}
+
+  # ── Vertex AI ─────────────────────────────────────────────────────────────
+  VERTEX_AI_LOCATION: {{ .Values.vertexAi.location | quote }}
+  VERTEX_AI_PROJECT_NAME: {{ include "finai.vertexProject" . | quote }}
+  LLM_MODEL: {{ .Values.vertexAi.model | quote }}
+  GEMINI_MAX_OUTPUT_TOKENS: {{ .Values.vertexAi.maxOutputTokens | quote }}
+
+  # ── Build (Kaniko) ────────────────────────────────────────────────────────
+  KANIKO_IMAGE: {{ .Values.build.kanikoImage | quote }}
+  BUILD_TIMEOUT_SECONDS: {{ .Values.build.timeoutSeconds | quote }}
+  BUILD_NAMESPACE: {{ .Values.namespaces.control | quote }}
+  KANIKO_BUILDER_KSA: {{ .Values.serviceAccounts.kanikoBuilder | quote }}
+
+  # ── Agent runtime ─────────────────────────────────────────────────────────
+  AGENT_NAMESPACE: {{ .Values.namespaces.agents | quote }}
+  AGENT_RUNTIME_KSA: {{ .Values.serviceAccounts.agentRuntime | quote }}
+  AGENT_DEFAULT_CPU_REQUEST: {{ .Values.agentRuntime.resources.requests.cpu | quote }}
+  AGENT_DEFAULT_MEMORY_REQUEST: {{ .Values.agentRuntime.resources.requests.memory | quote }}
+  AGENT_DEFAULT_CPU_LIMIT: {{ .Values.agentRuntime.resources.limits.cpu | quote }}
+  AGENT_DEFAULT_MEMORY_LIMIT: {{ .Values.agentRuntime.resources.limits.memory | quote }}
+  AGENT_HPA_MIN_REPLICAS: {{ .Values.agentRuntime.hpa.minReplicas | quote }}
+  AGENT_HPA_MAX_REPLICAS: {{ .Values.agentRuntime.hpa.maxReplicas | quote }}
+  AGENT_HPA_TARGET_CPU: {{ .Values.agentRuntime.hpa.targetCpu | quote }}
+
+  # ── Workflow runtime (Deployment+Service+HPA, NOT Jobs) ───────────────────
+  WORKFLOW_NAMESPACE: {{ .Values.namespaces.workflow | quote }}
+  WORKFLOW_RUNTIME_KSA: {{ .Values.serviceAccounts.workflowRuntime | quote }}
+  WORKFLOW_RUNTIME_PORT: {{ .Values.workflowRuntime.port | quote }}
+  WORKFLOW_DEFAULT_CPU_REQUEST: {{ .Values.workflowRuntime.resources.requests.cpu | quote }}
+  WORKFLOW_DEFAULT_MEMORY_REQUEST: {{ .Values.workflowRuntime.resources.requests.memory | quote }}
+  WORKFLOW_DEFAULT_CPU_LIMIT: {{ .Values.workflowRuntime.resources.limits.cpu | quote }}
+  WORKFLOW_DEFAULT_MEMORY_LIMIT: {{ .Values.workflowRuntime.resources.limits.memory | quote }}
+  WORKFLOW_HPA_MIN_REPLICAS: {{ .Values.workflowRuntime.hpa.minReplicas | quote }}
+  WORKFLOW_HPA_MAX_REPLICAS: {{ .Values.workflowRuntime.hpa.maxReplicas | quote }}
+  WORKFLOW_HPA_TARGET_CPU: {{ .Values.workflowRuntime.hpa.targetCpu | quote }}
+
+  # ── Datasource runtime (MCP) ──────────────────────────────────────────────
+  DATASOURCE_NAMESPACE: {{ .Values.namespaces.datasource | quote }}
+  DATASOURCE_RUNTIME_KSA: {{ .Values.serviceAccounts.datasourceRuntime | quote }}
+  DATASOURCE_RUNTIME_PORT: {{ .Values.datasourceRuntime.port | quote }}
+  DATASOURCE_DEFAULT_CPU_REQUEST: {{ .Values.datasourceRuntime.resources.requests.cpu | quote }}
+  DATASOURCE_DEFAULT_MEMORY_REQUEST: {{ .Values.datasourceRuntime.resources.requests.memory | quote }}
+  DATASOURCE_DEFAULT_CPU_LIMIT: {{ .Values.datasourceRuntime.resources.limits.cpu | quote }}
+  DATASOURCE_DEFAULT_MEMORY_LIMIT: {{ .Values.datasourceRuntime.resources.limits.memory | quote }}
+  DATASOURCE_HPA_MIN_REPLICAS: {{ .Values.datasourceRuntime.hpa.minReplicas | quote }}
+  DATASOURCE_HPA_MAX_REPLICAS: {{ .Values.datasourceRuntime.hpa.maxReplicas | quote }}
+  DATASOURCE_HPA_TARGET_CPU: {{ .Values.datasourceRuntime.hpa.targetCpu | quote }}
+  DATASOURCE_MCP_GCS_BUCKET: {{ .Values.gcs.datasourceMcpBucket | quote }}
+  DATASOURCE_MCP_GCS_PREFIX: {{ .Values.gcs.datasourceMcpPrefix | quote }}
+
+  # ── User profile storage ──────────────────────────────────────────────────
+  USER_PROFILE_GCS_BUCKET: {{ .Values.gcs.userProfileBucket | quote }}
+  USER_PROFILE_GCS_PREFIX: {{ .Values.gcs.userProfilePrefix | quote }}
+
+  # ── Frontend ──────────────────────────────────────────────────────────────
+  FRONTEND_URL: {{ printf "http://finai-frontend.%s.svc.cluster.local:%d" .Values.namespaces.control (int .Values.frontend.port) | quote }}

@@ -1,0 +1,20 @@
+FinAI Studio {{ .Chart.AppVersion }} installed into namespace {{ .Values.namespaces.control }}.
+
+Namespaces:
+  control plane : {{ .Values.namespaces.control }}   (frontend, backend, Kaniko build Jobs)
+  agents        : {{ .Values.namespaces.agents }}
+  workflow      : {{ .Values.namespaces.workflow }}
+  datasource    : {{ .Values.namespaces.datasource }}
+
+Next steps:
+  1. The pre-install validation hook has already verified AR / Vertex AI /
+     Cloud SQL / IAM / Secret Manager connectivity.
+  2. Run post-install verification:   helm test {{ .Release.Name }}
+  3. Reach the frontend via IAP / internal LB — do NOT expose a public
+     LoadBalancer (security baseline).
+  4. Backend health:  kubectl -n {{ .Values.namespaces.control }} get deploy finai-backend
+
+{{ if not .Values.customer.artifactRegistry }}
+WARNING: customer.artifactRegistry is empty — custom agent/workflow/datasource
+deploy endpoints will return HTTP 503 until it is set.
+{{ end }}

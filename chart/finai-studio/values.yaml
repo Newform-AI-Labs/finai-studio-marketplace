@@ -1,0 +1,219 @@
+# =============================================================================
+# FinAI Studio — default values
+#
+# Every value here is overridable from the Marketplace install form (schema.yaml)
+# or via `helm install -f my-values.yaml`. The keys mirror the Backend env-var
+# surface in app/core/config.py so the rendered ConfigMap (templates/configmap-
+# runtime.yaml) maps 1:1 onto Settings.
+#
+# PLACEHOLDER SCAFFOLD — values marked TODO must be wired before first install.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Marketplace deployer plumbing (injected by the GCP deployer image; do not edit
+# by hand when installing through the Marketplace UI).
+# -----------------------------------------------------------------------------
+name: finai-studio                 # release/instance name
+namespace: agentic-ai-internal     # control-plane namespace (release namespace)
+
+# Publisher image registry + reporting secret (Marketplace fills these in).
+reportingSecret: ""                # name of the usage-reporting Secret (vCPU metering)
+
+# -----------------------------------------------------------------------------
+# Customer GCP environment (REQUIRED — collected on the install form)
+# -----------------------------------------------------------------------------
+customer:
+  projectId: ""                    # CUSTOMER_PROJECT_ID            (TODO)
+  region: ""                       # CUSTOMER_REGION                (TODO)
+  artifactRegistry: ""             # CUSTOMER_ARTIFACT_REGISTRY  e.g. us-central1-docker.pkg.dev/proj/finai (TODO)
+  buildContextBucket: ""           # BUILD_CONTEXT_BUCKET  (GCS bucket for Kaniko tarballs) (TODO)
+
+# -----------------------------------------------------------------------------
+# Namespace topology (consolidated — see docs; NOT the legacy 6-namespace model)
+#   control-plane (this release ns) + agents + workflow + datasource
+#   build Jobs run in the control-plane namespace.
+# -----------------------------------------------------------------------------
+namespaces:
+  control: agentic-ai-internal     # frontend + backend + Kaniko build Jobs (BUILD_NAMESPACE)
+  agents: agentic-ai-agents        # AGENT_NAMESPACE
+  workflow: agentic-ai-workflow    # WORKFLOW_NAMESPACE
+  datasource: agentic-ai-connectors # DATASOURCE_NAMESPACE  (MCP datasource servers)
+  create: true                     # set false if customer pre-creates namespaces
+
+# -----------------------------------------------------------------------------
+# Workload Identity — KSA names per component. Customer binds these KSAs to the
+# matching GSAs out-of-band (see prerequisites doc).
+# -----------------------------------------------------------------------------
+serviceAccounts:
+  studioController: studio-controller-ksa   # backend (creates Jobs/Deployments)
+  kanikoBuilder: image-builder-ksa          # KANIKO_BUILDER_KSA
+  agentRuntime: agent-runtime-ksa           # AGENT_RUNTIME_KSA
+  workflowRuntime: workflow-runtime-ksa     # WORKFLOW_RUNTIME_KSA
+  datasourceRuntime: datasource-runtime-ksa # DATASOURCE_RUNTIME_KSA
+  annotations:
+    # iam.gke.io/gcp-service-account is patched per-KSA in templates/serviceaccounts.yaml
+    enabled: true
+
+# -----------------------------------------------------------------------------
+# Database — Cloud SQL (PostgreSQL, pgvector). Session storage + metadata.
+# Connection string assembled into SQLALCHEMY_DATABASE_URI.
+# -----------------------------------------------------------------------------
+database:
+  # If usePassword=true the chart expects a pre-created Secret (see existingSecret).
+  host: ""                         # Cloud SQL Proxy sidecar listens on 127.0.0.1 by default
+  port: 5432
+  name: finai
+  user: finai_app
+  existingSecret: finai-db-credentials   # Secret holding key `password`
+  passwordKey: password
+  poolSize: 10                     # BACKEND_DB_POOL_SIZE
+  maxOverflow: 20                  # BACKEND_DB_MAX_OVERFLOW
+  cloudSqlProxy:
+    enabled: true                  # run Cloud SQL Auth Proxy as a sidecar in the backend pod
+    instanceConnectionName: ""     # project:region:instance  (TODO)
+    image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.11.0
+
+# -----------------------------------------------------------------------------
+# Vertex AI / model config
+# -----------------------------------------------------------------------------
+vertexAi:
+  location: us-central1            # VERTEX_AI_LOCATION
+  projectName: ""                  # VERTEX_AI_PROJECT_NAME  (defaults to customer.projectId if empty)
+  model: gemini-2.5-flash          # LLM_MODEL
+  maxOutputTokens: 8192            # GEMINI_MAX_OUTPUT_TOKENS
+
+# -----------------------------------------------------------------------------
+# Control-plane workloads
+# -----------------------------------------------------------------------------
+backend:
+  image:
+    repository: ""                 # publisher AR, filled by Marketplace (TODO)
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  port: 8080                       # PORT (in-cluster); LB historically 9020
+  replicas: 2
+  resources:
+    requests: { cpu: "500m", memory: "1Gi" }
+    limits: { cpu: "1", memory: "2Gi" }
+  # Hardened per 2026-05 frontend RCE incident baseline.
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    allowPrivilegeEscalation: false
+    seccompProfile: { type: RuntimeDefault }
+    capabilities: { drop: ["ALL"] }
+
+frontend:
+  image:
+    repository: ""                 # publisher AR, distroless non-root (TODO)
+    tag: "1.0.0"
+    pullPolicy: IfNotPresent
+  port: 3000
+  replicas: 2
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits: { cpu: "500m", memory: "1Gi" }
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    allowPrivilegeEscalation: false
+    seccompProfile: { type: RuntimeDefault }
+    capabilities: { drop: ["ALL"] }
+
+# Frontend/backend must NOT be public LoadBalancers (incident baseline).
+ingress:
+  type: ClusterIP                  # use IAP / internal LB; never raw public LB
+  iap:
+    enabled: false                 # TODO: wire IAP backend config
+
+# -----------------------------------------------------------------------------
+# In-cluster build (Kaniko) — shared by agent/workflow/datasource deploy paths
+# -----------------------------------------------------------------------------
+build:
+  kanikoImage: gcr.io/kaniko-project/executor:v1.23.2   # KANIKO_IMAGE
+  timeoutSeconds: 600                                    # BUILD_TIMEOUT_SECONDS
+
+# -----------------------------------------------------------------------------
+# Per-runtime defaults — agent / workflow / datasource share the same
+# Deployment + Service(ClusterIP) + HPA shape (NOT Jobs).
+# -----------------------------------------------------------------------------
+agentRuntime:
+  port: 8080
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }   # AGENT_DEFAULT_*_REQUEST
+    limits:   { cpu: "1",    memory: "1Gi" }      # AGENT_DEFAULT_*_LIMIT
+  hpa: { minReplicas: 1, maxReplicas: 3, targetCpu: 80 }
+
+workflowRuntime:
+  port: 8080                                       # WORKFLOW_RUNTIME_PORT
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits:   { cpu: "1",    memory: "1Gi" }
+  hpa: { minReplicas: 1, maxReplicas: 3, targetCpu: 80 }
+
+datasourceRuntime:
+  port: 8080                                       # DATASOURCE_RUNTIME_PORT
+  resources:
+    requests: { cpu: "250m", memory: "512Mi" }
+    limits:   { cpu: "1",    memory: "1Gi" }
+  hpa: { minReplicas: 1, maxReplicas: 3, targetCpu: 80 }
+
+# -----------------------------------------------------------------------------
+# Datasource / user-profile GCS (MCP build context + profile storage)
+# -----------------------------------------------------------------------------
+gcs:
+  datasourceMcpBucket: ""          # DATASOURCE_MCP_GCS_BUCKET
+  datasourceMcpPrefix: "datasource"
+  userProfileBucket: ""            # USER_PROFILE_GCS_BUCKET
+  userProfilePrefix: "profiles"
+
+# -----------------------------------------------------------------------------
+# Secrets — names of customer-created Secret Manager secrets / K8s Secrets.
+# The chart does NOT create app secrets; it references them.
+# -----------------------------------------------------------------------------
+secrets:
+  jwtSecret: finai-jwt             # JWT_SECRET (K8s Secret, key `value`)
+  credentialEncryptionKey: finai-cred-key  # CREDENTIAL_ENCRYPTION_KEY
+  # OAuth / SMTP left empty by default (optional features)
+
+# -----------------------------------------------------------------------------
+# Pre-install validation (Helm pre-install hook). Aborts install on failure.
+# -----------------------------------------------------------------------------
+preinstallValidation:
+  enabled: true
+  image:
+    repository: ""                 # publisher AR: finai-preinstall-validator (TODO)
+    tag: "1.0.0"
+  gsaEmail: ""                     # GSA the validator KSA binds to (read roles on AR/Vertex/SQL/SM)
+  requiredSecrets: []              # Secret Manager secret IDs that must exist, e.g. [LEXISNEXIS_API_KEY]
+  # Toggle individual checks (all on by default).
+  checks:
+    artifactRegistry: true
+    vertexAi: true
+    cloudSql: true
+    iam: true
+    secretManager: true
+  timeoutSeconds: 120
+
+# -----------------------------------------------------------------------------
+# Post-install tester pod (Helm test hook).
+# -----------------------------------------------------------------------------
+tester:
+  enabled: true
+  image:
+    repository: ""                 # reuse validator image or curl image (TODO)
+    tag: "1.0.0"
+
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
+logging:
+  environment: production          # ENVIRONMENT
+  level: INFO                      # LOG_LEVEL
+
+# -----------------------------------------------------------------------------
+# NetworkPolicy — default-deny egress with allowlist (incident baseline).
+# -----------------------------------------------------------------------------
+networkPolicy:
+  enabled: true
+  defaultDenyEgress: true

@@ -1,0 +1,90 @@
+{{- /*
+Backend (studio-controller-ksa) namespace-scoped RBAC.
+
+The backend builds + deploys custom agents, workflows, AND datasources at
+runtime. Canonical pattern confirmed from code (app/service/<x>/build_deploy):
+
+  * Build  → batch/jobs (Kaniko) in the CONTROL namespace only.
+  * Deploy → apps/deployments + core/services + autoscaling/hpa in EACH of the
+             agents / workflow / datasource namespaces.
+
+  NOTE: workflows are long-running Deployment+Service+HPA (NOT batch Jobs), so
+  the workflow namespace gets the SAME deploy verbs as the agents namespace.
+*/ -}}
+{{- $controller := .Values.serviceAccounts.studioController -}}
+{{- $ctrlNs := .Values.namespaces.control -}}
+
+# ── Control namespace: create + manage Kaniko build Jobs ─────────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: studio-controller-build
+  namespace: {{ $ctrlNs }}
+  labels:
+    {{- include "finai.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["create", "get", "list", "watch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: studio-controller-build
+  namespace: {{ $ctrlNs }}
+  labels:
+    {{- include "finai.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: studio-controller-build
+subjects:
+  - kind: ServiceAccount
+    name: {{ $controller }}
+    namespace: {{ $ctrlNs }}
+{{- /* Deploy verbs replicated across each runtime namespace */ -}}
+{{- range $ns := list .Values.namespaces.agents .Values.namespaces.workflow .Values.namespaces.datasource }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: studio-controller-deploy
+  namespace: {{ $ns }}
+  labels:
+    {{- include "finai.labels" $ | nindent 4 }}
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["create", "get", "list", "watch", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: studio-controller-deploy
+  namespace: {{ $ns }}
+  labels:
+    {{- include "finai.labels" $ | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: studio-controller-deploy
+subjects:
+  - kind: ServiceAccount
+    name: {{ $controller }}
+    namespace: {{ $ctrlNs }}
+{{- end }}

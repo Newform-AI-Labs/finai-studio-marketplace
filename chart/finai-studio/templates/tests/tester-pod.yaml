@@ -1,0 +1,37 @@
+{{- if .Values.tester.enabled }}
+# Post-install verification — runs on `helm test`. Hits backend /api/health and
+# confirms the frontend Service has endpoints. PLACEHOLDER: extend to probe an
+# agent A2A endpoint once a pre-built agent is deployed.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "finai.name" . }}-test
+  namespace: {{ .Values.namespaces.control }}
+  labels:
+    {{- include "finai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: tester
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    seccompProfile: { type: RuntimeDefault }
+  containers:
+    - name: tester
+      image: "{{ .Values.tester.image.repository }}:{{ .Values.tester.image.tag }}"
+      command:
+        - /bin/sh
+        - -c
+        - |
+          set -eu
+          echo "Probing backend health..."
+          curl -fsS "http://finai-backend.{{ .Values.namespaces.control }}.svc.cluster.local/api/health"
+          echo "\nBackend OK."
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        capabilities: { drop: ["ALL"] }
+{{- end }}

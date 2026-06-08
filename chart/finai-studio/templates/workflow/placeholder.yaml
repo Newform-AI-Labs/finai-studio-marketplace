@@ -1,0 +1,10 @@
+# workflow namespace — runtime-populated; no static Helm workloads at install.
+#
+# Workflows are built + deployed AT RUNTIME by the backend
+# (app/service/workflow/build_deploy) as Deployment + Service (ClusterIP) + HPA
+# — the same shape as agents, NOT Kubernetes Jobs. The only Job in the platform
+# is the transient Kaniko build Job in the control namespace.
+#
+# This file is intentionally comment-only (renders to an empty manifest). It
+# holds the directory for future NetworkPolicy / ResourceQuota placeholders.
+# Backend RBAC granting deploy verbs here lives in templates/rbac-backend.yaml.

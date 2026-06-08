@@ -1,0 +1,16 @@
+{{- /*
+PLACEHOLDER — pre-built agents shipped with the product.
+
+  * Pre-built agents: Helm renders a Deployment+Service+HPA per agent HERE at
+    install time, pulling images from the publisher Artifact Registry.
+  * Custom agents:    created at runtime by the backend (NOT templated here) —
+    built via Kaniko, deployed into this same namespace.
+
+Loop over .Values.prebuiltAgents once that list is defined in values.yaml.
+*/ -}}
+{{- range .Values.prebuiltAgents | default list }}
+---
+# apiVersion: apps/v1
+# kind: Deployment   (name: agent-{{ .id }}, ns: {{ $.Values.namespaces.agents }})
+# image: {{ $.Values.backend.image.repository }}/{{ .id }}:{{ .version }}
+{{- end }}

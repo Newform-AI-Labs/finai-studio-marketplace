@@ -1,0 +1,19 @@
+{{- if .Values.preinstallValidation.enabled }}
+# Dedicated KSA for the validation hook, Workload-Identity-bound to a GSA that
+# holds read roles on AR / Vertex AI / Cloud SQL / Secret Manager. Created as a
+# pre-install hook (earlier weight than the ConfigMap/Job) so it exists in time.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "finai.name" . }}-validator
+  namespace: {{ .Values.namespaces.control }}
+  labels:
+    {{- include "finai.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "-20"
+    "helm.sh/hook-delete-policy": before-hook-creation
+    {{- with .Values.preinstallValidation.gsaEmail }}
+    iam.gke.io/gcp-service-account: {{ . }}
+    {{- end }}
+{{- end }}

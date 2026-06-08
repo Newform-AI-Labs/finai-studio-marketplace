@@ -1,0 +1,50 @@
+# Kubernetes Application CRD — required by GCP Marketplace. Groups all chart
+# resources under one logical app for the Marketplace UI + `kubectl get app`.
+apiVersion: app.k8s.io/v1beta1
+kind: Application
+metadata:
+  name: {{ include "finai.name" . }}
+  namespace: {{ .Values.namespaces.control }}
+  labels:
+    {{- include "finai.labels" . | nindent 4 }}
+  annotations:
+    kubernetes-engine.cloud.google.com/icon: >-
+      data:image/png;base64,PLACEHOLDER_BASE64_ICON
+    marketplace.cloud.google.com/deploy-info: '{"partner_id": "newform", "product_id": "finai-studio", "partner_name": "Newform Technologies"}'
+spec:
+  descriptor:
+    type: FinAI Studio
+    version: "{{ .Chart.AppVersion }}"
+    description: >-
+      Kubernetes-native Agentic AI platform. Build, deploy, and orchestrate
+      custom AI agents, workflows, and datasource connectors in-cluster.
+    maintainers:
+      - name: Newform Technologies
+        url: https://www.newformtech.ai
+    links:
+      - description: Product page
+        url: https://www.newformtech.ai/marketplace
+      - description: EULA
+        url: https://www.newformtech.ai/platform/eula
+    notes: |-
+      FinAI Studio is installed. The frontend is reachable inside the cluster at
+      the ClusterIP Service (expose via IAP — do NOT use a public LoadBalancer).
+  # selector groups resources carrying part-of=finai-studio across all namespaces.
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: finai-studio
+  componentKinds:
+    - group: apps/v1
+      kind: Deployment
+    - group: v1
+      kind: Service
+    - group: v1
+      kind: ConfigMap
+    - group: v1
+      kind: ServiceAccount
+    - group: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+    - group: rbac.authorization.k8s.io/v1
+      kind: Role
+    - group: rbac.authorization.k8s.io/v1
+      kind: RoleBinding

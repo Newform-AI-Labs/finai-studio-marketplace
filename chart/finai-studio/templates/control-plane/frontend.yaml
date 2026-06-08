@@ -1,0 +1,52 @@
+# PLACEHOLDER — frontend Deployment + Service. Distroless non-root image
+# (UID 65532), hardened securityContext per the 2026-05 RCE incident baseline.
+# MUST NOT be exposed via public LoadBalancer — front with IAP / internal LB.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: finai-frontend
+  namespace: {{ .Values.namespaces.control }}
+  labels:
+    {{- include "finai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        {{- include "finai.labels" . | nindent 8 }}
+        app.kubernetes.io/component: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.frontend.port }}
+          env:
+            - name: BACKEND_URL
+              value: {{ printf "http://finai-backend.%s.svc.cluster.local" .Values.namespaces.control | quote }}
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.frontend.securityContext | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: finai-frontend
+  namespace: {{ .Values.namespaces.control }}
+  labels:
+    {{- include "finai.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  type: {{ .Values.ingress.type }}
+  selector:
+    app.kubernetes.io/component: frontend
+  ports:
+    - port: 80
+      targetPort: {{ .Values.frontend.port }}
+      name: http
