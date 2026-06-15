@@ -1,0 +1,8 @@
+# TerraformKubernetesAppSchemaV1. Form is defined by metadata.display.yaml.
+# images: map keyed by image name (sub-path under the repo prefix
+# us-docker.pkg.dev/newform-public/finai-studio-repo). Declares the chart
+# artifact plus the workload images the chart deploys.
+images:
+  finai-studio: {}
+  finai-studio-backend: {}
+  finai-studio-frontend: {}

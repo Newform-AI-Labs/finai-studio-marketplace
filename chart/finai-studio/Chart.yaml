@@ -8,8 +8,8 @@ description: >-
   customer's own Artifact Registry.
 type: application
 
-# Chart version — bump on every chart change (SemVer).
-version: 0.1.0
+# Chart version — Marketplace requires a semantic MINOR version (MAJOR.MINOR).
+version: "1.0"
 
 # Application version — tracks the FinAI Studio product release shipped via
 # the publisher Artifact Registry images.
@@ -26,3 +26,5 @@ annotations:
   # GCP Marketplace product identity. Must match the image annotation
   # com.googleapis.cloudmarketplace.product.service.name baked into the images.
   marketplace.cloud.google.com/product-id: "finai-studio"
+  # Required by Marketplace verification — OCI manifest annotation, services/ prefix.
+  com.googleapis.cloudmarketplace.product.service.name: "services/finai-studio.endpoints.newform-public.cloud.goog"

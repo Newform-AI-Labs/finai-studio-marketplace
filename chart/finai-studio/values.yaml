@@ -87,8 +87,8 @@ vertexAi:
 # -----------------------------------------------------------------------------
 backend:
   image:
-    repository: ""                 # publisher AR, filled by Marketplace (TODO)
-    tag: "1.0.0"
+    repository: "us-docker.pkg.dev/newform-public/finai-studio-repo/finai-studio-backend"
+    tag: "1.0.0"                   # version tag (NOT latest) — digest 7b74c6dc... (multi-region us)
     pullPolicy: IfNotPresent
   port: 8080                       # PORT (in-cluster); LB historically 9020
   replicas: 2
@@ -105,8 +105,8 @@ backend:
 
 frontend:
   image:
-    repository: ""                 # publisher AR, distroless non-root (TODO)
-    tag: "1.0.0"
+    repository: "us-docker.pkg.dev/newform-public/finai-studio-repo/finai-studio-frontend"
+    tag: "1.0.0"                   # version tag (NOT latest) — digest fc8cc67d... (multi-region us)
     pullPolicy: IfNotPresent
   port: 3000
   replicas: 2

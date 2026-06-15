@@ -1,0 +1,122 @@
+apiVersion: blueprints.cloud.google.com/v1alpha1
+kind: BlueprintMetadata
+metadata:
+  name: finai-studio-display
+  annotations:
+    config.kubernetes.io/local-config: "true"
+spec:
+  info:
+    title: FinAI Studio (Intelligent Agents)
+  ui:
+    input:
+      variables:
+        project_id:
+          name: project_id
+          title: Project Id
+          invisible: true
+        goog_cm_deployment_name:
+          name: goog_cm_deployment_name
+          title: Goog Cm Deployment Name
+          invisible: true
+        helm_release_name:
+          name: helm_release_name
+          title: Helm Release Name
+        helm_chart_repo:
+          name: helm_chart_repo
+          title: Helm Chart Repo
+          invisible: true
+        helm_chart_name:
+          name: helm_chart_name
+          title: Helm Chart Name
+          invisible: true
+        helm_chart_version:
+          name: helm_chart_version
+          title: Helm Chart Version
+          invisible: true
+        namespace:
+          name: namespace
+          title: Namespace
+        create_cluster:
+          name: create_cluster
+          title: Create Cluster
+          xGoogleProperty:
+            type: ET_CREATE_RESOURCE
+        cluster_location:
+          name: cluster_location
+          title: Cluster Location
+          xGoogleProperty:
+            type: ET_GCE_LOCATION
+        cluster_name:
+          name: cluster_name
+          title: Cluster Name
+          xGoogleProperty:
+            type: ET_GKE_CLUSTER
+            gkeCluster:
+              locationVariable: cluster_location
+              clusterCreationVariable: create_cluster
+        create_cluster_service_account:
+          name: create_cluster_service_account
+          title: Create Cluster Service Account
+        cluster_service_account:
+          name: cluster_service_account
+          title: Cluster Service Account
+        kubernetes_version:
+          name: kubernetes_version
+          title: Kubernetes Version
+        ip_range_pods:
+          name: ip_range_pods
+          title: Ip Range Pods
+        ip_range_services:
+          name: ip_range_services
+          title: Ip Range Services
+        network_name:
+          name: network_name
+          title: Network Name
+        subnetwork_name:
+          name: subnetwork_name
+          title: Subnetwork Name
+        subnetwork_region:
+          name: subnetwork_region
+          title: Subnetwork Region
+        customer_region:
+          name: customer_region
+          title: Primary Region
+        customer_artifact_registry:
+          name: customer_artifact_registry
+          title: Artifact Registry Path
+        build_context_bucket:
+          name: build_context_bucket
+          title: Build Context GCS Bucket
+        vertex_ai_location:
+          name: vertex_ai_location
+          title: Vertex AI Location
+        cloudsql_instance_connection_name:
+          name: cloudsql_instance_connection_name
+          title: Cloud SQL Instance Connection Name
+        database_existing_secret:
+          name: database_existing_secret
+          title: DB Password Secret Name
+        studio_controller_gsa:
+          name: studio_controller_gsa
+          title: Studio Controller GSA Email
+        image_builder_gsa:
+          name: image_builder_gsa
+          title: Image Builder GSA Email
+        agent_runtime_gsa:
+          name: agent_runtime_gsa
+          title: Agent Runtime GSA Email
+        workflow_runtime_gsa:
+          name: workflow_runtime_gsa
+          title: Workflow Runtime GSA Email
+        datasource_runtime_gsa:
+          name: datasource_runtime_gsa
+          title: Datasource Runtime GSA Email
+        preinstall_validator_gsa:
+          name: preinstall_validator_gsa
+          title: Pre-install Validator GSA Email
+        backend_replicas:
+          name: backend_replicas
+          title: Backend Replicas
+        frontend_replicas:
+          name: frontend_replicas
+          title: Frontend Replicas
