@@ -4,5 +4,15 @@
 # artifact plus the workload images the chart deploys.
 images:
   finai-studio: {}
-  finai-studio-backend: {}
-  finai-studio-frontend: {}
+  finai-studio-backend:
+    variables:
+      backend_image_repo:
+        type: REPO_WITH_REGISTRY_WITH_NAME
+      backend_image_tag:
+        type: TAG
+  finai-studio-frontend:
+    variables:
+      frontend_image_repo:
+        type: REPO_WITH_REGISTRY_WITH_NAME
+      frontend_image_tag:
+        type: TAG

@@ -95,4 +95,23 @@ resource "helm_release" "primary" {
     name  = "frontend.replicas"
     value = var.frontend_replicas
   }
+
+  # Image locations — mpdev overrides these to the republished Marketplace
+  # registry so customers pull from Google's entitlement-gated copies.
+  set {
+    name  = "backend.image.repository"
+    value = var.backend_image_repo
+  }
+  set {
+    name  = "backend.image.tag"
+    value = var.backend_image_tag
+  }
+  set {
+    name  = "frontend.image.repository"
+    value = var.frontend_image_repo
+  }
+  set {
+    name  = "frontend.image.tag"
+    value = var.frontend_image_tag
+  }
 }

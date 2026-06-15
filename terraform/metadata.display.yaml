@@ -120,3 +120,19 @@ spec:
         frontend_replicas:
           name: frontend_replicas
           title: Frontend Replicas
+        backend_image_repo:
+          name: backend_image_repo
+          title: Backend Image Repo
+          invisible: true
+        backend_image_tag:
+          name: backend_image_tag
+          title: Backend Image Tag
+          invisible: true
+        frontend_image_repo:
+          name: frontend_image_repo
+          title: Frontend Image Repo
+          invisible: true
+        frontend_image_tag:
+          name: frontend_image_tag
+          title: Frontend Image Tag
+          invisible: true

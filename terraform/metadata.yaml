@@ -116,6 +116,18 @@ spec:
       - name: frontend_replicas
         varType: number
         defaultValue: 2
+      - name: backend_image_repo
+        varType: string
+        defaultValue: us-docker.pkg.dev/newform-public/finai-studio-repo/finai-studio-backend
+      - name: backend_image_tag
+        varType: string
+        defaultValue: "1.0"
+      - name: frontend_image_repo
+        varType: string
+        defaultValue: us-docker.pkg.dev/newform-public/finai-studio-repo/finai-studio-frontend
+      - name: frontend_image_tag
+        varType: string
+        defaultValue: "1.0"
     outputs:
       - name: deployment_name
         description: Helm release name.

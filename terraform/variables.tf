@@ -96,6 +96,27 @@ variable "subnetwork_region" {
   default = "us-central1"
 }
 
+# ── Container images (overridden by mpdev to the republished Marketplace copies) ──
+variable "backend_image_repo" {
+  type    = string
+  default = "us-docker.pkg.dev/newform-public/finai-studio-repo/finai-studio-backend"
+}
+
+variable "backend_image_tag" {
+  type    = string
+  default = "1.0"
+}
+
+variable "frontend_image_repo" {
+  type    = string
+  default = "us-docker.pkg.dev/newform-public/finai-studio-repo/finai-studio-frontend"
+}
+
+variable "frontend_image_tag" {
+  type    = string
+  default = "1.0"
+}
+
 # ── FinAI Studio customer environment (mapped onto chart values) ─────────────
 variable "customer_region" {
   type    = string
