@@ -28,3 +28,5 @@ annotations:
   marketplace.cloud.google.com/product-id: "finai-studio"
   # Required by Marketplace verification — OCI manifest annotation, services/ prefix.
   com.googleapis.cloudmarketplace.product.service.name: "services/finai-studio.endpoints.newform-public.cloud.goog"
+  # Build marker — bumped to force a fresh chart digest + clean Marketplace republish.
+  newform.ai/build: "2026-06-16.1"
